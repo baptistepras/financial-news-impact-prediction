@@ -341,6 +341,7 @@ def main() -> None:
     ap.add_argument("--device_map", default="auto")
     ap.add_argument("--torch_dtype", default="float16", choices=["float16", "bfloat16", "float32"])
     ap.add_argument("--max_source_chars", type=int, default=9000, help="truncate SOURCE to limit prompt size")
+    ap.add_argument("--progress_every", type=int, default=10)
     args = ap.parse_args()
 
     df = pd.read_csv(args.input_csv)
@@ -412,6 +413,9 @@ def main() -> None:
                 "_raw_output": judge_obj.get("_raw_output", ""),
             }
         )
+
+        if args.progress_every > 0 and (len(results_rows) % args.progress_every) == 0:
+            print(f"Judged {len(results_rows)}/{n}", flush=True)
 
     stats: Dict[str, Dict[str, Any]] = {"mean": {}, "p5": {}, "p95": {}, "worst_5pct": {}, "best_5pct": {}}
     for cat in DEFAULT_CATEGORIES:
