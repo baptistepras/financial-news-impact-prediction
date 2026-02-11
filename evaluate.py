@@ -344,12 +344,19 @@ def main() -> None:
     ap.add_argument("--progress_every", type=int, default=10)
     args = ap.parse_args()
 
+    print("[Init] Loading input CSV...", flush=True)
     df = pd.read_csv(args.input_csv)
     if "text" not in df.columns or "pred_summary" not in df.columns:
         raise ValueError("CSV must contain columns: 'text' and 'pred_summary'")
 
     if args.max_rows and args.max_rows > 0:
         df = df.iloc[: args.max_rows].copy()
+
+    print(f"[Init] Rows to judge: {len(df)}", flush=True)
+    print(f"[Init] Model: {args.model}", flush=True)
+    print(f"[Init] Device map: {args.device_map} | dtype: {args.torch_dtype}", flush=True)
+    print(f"[Init] Max source chars: {args.max_source_chars} | Max new tokens: {args.max_new_tokens}", flush=True)
+    print(f"[Init] Output JSON: {args.out_json}", flush=True)
 
     cfg = JudgeConfig(
         model_name=args.model,
@@ -361,8 +368,11 @@ def main() -> None:
         max_source_chars=args.max_source_chars,
     )
 
+    print("\n[1/3] Loading judge model and tokenizer...", flush=True)
     tok, model = load_model_and_tokenizer(cfg)
+    print("[1/3] Model loaded.", flush=True)
 
+    print("\n[2/3] Running per-row judgments...", flush=True)
     results_rows: List[Dict[str, Any]] = []
     n = len(df)
 
@@ -415,8 +425,12 @@ def main() -> None:
         )
 
         if args.progress_every > 0 and (len(results_rows) % args.progress_every) == 0:
-            print(f"Judged {len(results_rows)}/{n}", flush=True)
+            print(f"[2/3] Judged {len(results_rows)}/{n}", flush=True)
 
+    if args.progress_every > 0 and len(results_rows) % args.progress_every != 0:
+        print(f"[2/3] Judged {len(results_rows)}/{n}", flush=True)
+
+    print("\n[3/3] Aggregating statistics + writing output JSON...", flush=True)
     stats: Dict[str, Dict[str, Any]] = {"mean": {}, "p5": {}, "p95": {}, "worst_5pct": {}, "best_5pct": {}}
     for cat in DEFAULT_CATEGORIES:
         vals = [r["scores"].get(cat, float("nan")) for r in results_rows]
@@ -444,6 +458,8 @@ def main() -> None:
 
     with open(args.out_json, "w", encoding="utf-8") as f:
         json.dump(out, f, ensure_ascii=False, indent=2)
+
+    print(f"[Done] Wrote: {args.out_json}", flush=True)
 
 
 if __name__ == "__main__":

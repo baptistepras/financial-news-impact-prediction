@@ -867,13 +867,25 @@ def main() -> None:
     ap.add_argument("--fp16", action="store_true")
 
     args = ap.parse_args()
+
     device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
+    print(f"[Init] Device = {device}", flush=True)
+    print(f"[Init] Data = {args.data} | LID = {args.lid}", flush=True)
+    print(f"[Init] Impact model = {args.impact_model_name} | Notes model = {args.notes_model_name}", flush=True)
+    print(f"[Init] Output dir = {args.output_dir} | pred.csv = {args.pred_csv}", flush=True)
 
+    print("\n[1/7] Loading + cleaning dataset...", flush=True)
     df = prepare_dataframe(args.data, args.lid, date_col="Date", text_col="Content", target_col="Impact")
-    train_df, test_df = chronological_train_test_split(df, test_size=args.test_size)
+    print(f"[1/7] Rows after prep: {len(df)}", flush=True)
 
+    print("\n[2/7] Chronological train/test split...", flush=True)
+    train_df, test_df = chronological_train_test_split(df, test_size=args.test_size)
+    print(f"[2/7] Train rows: {len(train_df)} | Test rows: {len(test_df)}", flush=True)
+
+    print("\n[3/7] Building tokenizer and chunking datasets...", flush=True)
     impact_tokenizer_base = AutoTokenizer.from_pretrained(args.impact_model_name)
 
+    print("[3/7] Chunking TRAIN set...", flush=True)
     train_tok_full = chunk_tokenize_dataset(
         train_df,
         tokenizer=impact_tokenizer_base,
@@ -886,7 +898,9 @@ def main() -> None:
         add_impact_train_prefix=True,
         min_chunk_ratio=args.min_chunk_ratio,
     )
+    print(f"[3/7] Train chunks: {len(train_tok_full)}", flush=True)
 
+    print("[3/7] Chunking TEST set...", flush=True)
     test_tok_full = chunk_tokenize_dataset(
         test_df.reset_index(drop=True),
         tokenizer=impact_tokenizer_base,
@@ -899,11 +913,14 @@ def main() -> None:
         add_impact_train_prefix=False,
         min_chunk_ratio=args.min_chunk_ratio,
     )
+    print(f"[3/7] Test chunks: {len(test_tok_full)}", flush=True)
 
-    # Keep chunk_id for weighted loss; drop non-numeric columns for Trainer inputs.
+    print("\n[4/7] Preparing Trainer datasets (dropping non-numeric columns)...", flush=True)
     train_tok = train_tok_full.remove_columns(["Date", "Content", "doc_id", "chunk_text", "MainSubject"])
     eval_tok = test_tok_full.remove_columns(["Date", "Content", "doc_id", "chunk_text", "MainSubject"])
+    print(f"[4/7] Trainer train size: {len(train_tok)} | eval size: {len(eval_tok)}", flush=True)
 
+    print("\n[5/7] Building Trainer...", flush=True)
     os.makedirs(args.output_dir, exist_ok=True)
     trainer, _ = build_trainer(
         model_name=args.impact_model_name,
@@ -924,22 +941,29 @@ def main() -> None:
         warmup_ratio=args.warmup_ratio,
     )
 
+    print("[5/7] Starting training...", flush=True)
     trainer.train()
+
+    print("[5/7] Saving trained model + tokenizer...", flush=True)
     trainer.save_model(args.output_dir)
     impact_tokenizer_base.save_pretrained(args.output_dir)
 
+    print("\n[6/7] Loading models for inference (notes + trained impact)...", flush=True)
     notes_tokenizer = AutoTokenizer.from_pretrained(args.notes_model_name)
     notes_model = AutoModelForSeq2SeqLM.from_pretrained(args.notes_model_name).to(device)
 
     impact_tokenizer = AutoTokenizer.from_pretrained(args.output_dir)
     impact_model = AutoModelForSeq2SeqLM.from_pretrained(args.output_dir).to(device)
 
+    print("[6/7] Building chunk metadata for test set...", flush=True)
     meta = (
         test_tok_full.remove_columns(["Date"])
         .select_columns(["doc_id", "chunk_id", "Content", "chunk_text", "MainSubject"])
         .to_pandas()
     )
+    print(f"[6/7] Meta rows (test chunks): {len(meta)}", flush=True)
 
+    print("[6/7] Generating NOTES per chunk...", flush=True)
     chunk_notes = generate_notes_per_chunk(
         notes_model=notes_model,
         notes_tokenizer=notes_tokenizer,
@@ -951,7 +975,9 @@ def main() -> None:
         num_beams=max(4, args.num_beams),
     )
     meta["chunk_pred"] = chunk_notes
+    print("[6/7] NOTES generation done.", flush=True)
 
+    print("[6/7] Reducing NOTES to document-level impact summaries...", flush=True)
     doc_pred = generate_impact_summaries(
         impact_model=impact_model,
         impact_tokenizer=impact_tokenizer,
@@ -963,13 +989,18 @@ def main() -> None:
         reduce_group_size=args.reduce_group_size,
         length_penalty=args.length_penalty,
     )
+    print(f"[6/7] Generated doc summaries: {len(doc_pred)}", flush=True)
 
+    print("\n[7/7] Computing ROUGE-L vs gold Impact labels...", flush=True)
     gold = test_df.reset_index(drop=True)["Impact"].tolist()
     doc_pred_scored, overall = add_rouge_scores(doc_pred, gold)
+    print(f"[7/7] Overall ROUGE-L F1 mean: {overall['rougeL_f1_mean']:.4f}", flush=True)
 
+    print("[7/7] Writing pred.csv...", flush=True)
     out = doc_pred_scored[["text", "pred_summary", "rougeL_f1"]].copy()
     footer = pd.DataFrame([{"text": "__OVERALL__", "pred_summary": "", "rougeL_f1": overall["rougeL_f1_mean"]}])
     pd.concat([out, footer], ignore_index=True).to_csv(args.pred_csv, index=False)
+    print(f"[Done] Wrote: {args.pred_csv}", flush=True)
 
 
 if __name__ == "__main__":
