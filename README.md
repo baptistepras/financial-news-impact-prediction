@@ -17,7 +17,7 @@ This project implements a frugal pipeline for processing financial news articles
 ├── evaluate.py                  # LLM-as-a-judge evaluation framework for text summarization
 ├── pred.csv                     # Model predictions output for text summarization
 ├── judge_results.json           # Evaluation metrics and statistics for text summarization
-├── data_vizualization.ipynb     # Data exploration and results visualization
+├── main.ipynb                   # Data exploration and entity extraction and linking
 └── README.md
 ```
 
