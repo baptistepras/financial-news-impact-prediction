@@ -18,6 +18,8 @@ This project implements a frugal pipeline for processing financial news articles
 ├── pred.csv                     # Model predictions output for text summarization
 ├── judge_results.json           # Evaluation metrics and statistics for text summarization
 ├── main.ipynb                   # Data exploration and entity extraction and linking
+├── slides.pdf
+├── report.pdf
 └── README.md
 ```
 
