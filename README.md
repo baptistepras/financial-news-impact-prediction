@@ -2,6 +2,11 @@
 
 Academic project exploring NLP tasks on financial news data with a focus on text summarization, entity extraction and linking, and impact prediction.
 
+students : 
+- PRAS Baptiste
+- PEÑA CASTAÑO Javier
+- LEIVA Martin
+- HERRERA NATIVI Vladimir
 ## Overview
 
 This project implements a frugal pipeline for processing financial news articles using transformer-based models. The dataset consists of high-quality financial news articles annotated with Mixtral 7×8B-generated summaries and impact labels.
