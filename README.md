@@ -69,19 +69,27 @@ The evaluation framework (`evaluate.py`) assesses generated summaries across six
 ## Usage
 
 ### Training
+- Impact 
 ```bash
 python train_chunk_reduce.py
 ```
-
+- Market Reaction
+```bash
+python marketReaction.py --train_csv train_triplets.csv --test_csv test_triplets.csv --output_dir outputs --index_ticker "^TASI.SR"
+```
 ### Evaluation
+- Impact 
 ```bash
 python evaluate.py --input_csv pred.csv --model Qwen/Qwen2.5-7B-Instruct
 ```
+- Market Reaction : automatic
 
 ### Visualization
+- Impact 
 ```bash
 jupyter notebook data_vizualization.ipynb
 ```
+- Market Reaction : saved plots 
 
 ## Requirements
 
