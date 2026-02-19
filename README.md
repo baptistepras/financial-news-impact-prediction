@@ -18,6 +18,8 @@ This project implements a frugal pipeline for processing financial news articles
 ├── pred.csv                     # Model predictions output for text summarization
 ├── judge_results.json           # Evaluation metrics and statistics for text summarization
 ├── main.ipynb                   # Data exploration and entity extraction and linking
+├── marketReaction.py            # Classification task for market reactions
+├── outputs/                     # metrics and outputs of the calssification task
 ├── slides.pdf
 ├── report.pdf
 └── README.md
