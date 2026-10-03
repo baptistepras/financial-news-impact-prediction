@@ -829,14 +829,14 @@ def main() -> None:
     """Run end-to-end training and evaluation for the impact summarizer."""
     ap = argparse.ArgumentParser()
 
-    ap.add_argument("--data", default="dataset.csv")
+    ap.add_argument("--data", default="data/dataset.csv")
     ap.add_argument("--lid", default="lid.176.bin")
 
     ap.add_argument("--impact_model_name", default="google/flan-t5-large")
     ap.add_argument("--notes_model_name", default="google/flan-t5-large")
 
     ap.add_argument("--output_dir", default="./t5_impact_large")
-    ap.add_argument("--pred_csv", default="pred.csv")
+    ap.add_argument("--pred_csv", default="results/pred.csv")
     ap.add_argument("--test_size", type=float, default=0.20)
 
     ap.add_argument("--chunk_len", type=int, default=768)

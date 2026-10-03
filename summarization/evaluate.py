@@ -333,8 +333,8 @@ def validate_and_normalize_judge_json(obj: Dict[str, Any]) -> Dict[str, Any]:
 def main() -> None:
     """Run batch judging over a CSV file and write per-row results plus aggregate statistics."""
     ap = argparse.ArgumentParser()
-    ap.add_argument("--input_csv", default="pred.csv")
-    ap.add_argument("--out_json", default="judge_results.json")
+    ap.add_argument("--input_csv", default="results/pred.csv")
+    ap.add_argument("--out_json", default="results/judge_results.json")
     ap.add_argument("--model", default="Qwen/Qwen2.5-7B-Instruct")
     ap.add_argument("--max_rows", type=int, default=0, help="0 = all rows")
     ap.add_argument("--max_new_tokens", type=int, default=420)

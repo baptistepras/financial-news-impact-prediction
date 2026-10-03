@@ -1,0 +1,23 @@
+# Environment for the financial news pipeline.
+# Common packages come from conda-forge, the rest from pip.
+name: financial-news
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - pytorch>=2.5
+  - transformers>=5.0,<6   # Flan-T5, the BERT NER model, Qwen2.5, MiniLM
+  - accelerate             # Trainer and device_map="auto"
+  - datasets               # tokenized chunks for fine-tuning
+  - rapidfuzz              # company name matching
+  - scikit-learn
+  - pandas
+  - numpy
+  - matplotlib
+  - jupyterlab
+  - ipykernel
+  - pip
+  - pip:
+      - fasttext==0.9.3    # language identification
+      - rouge-score        # ROUGE-L
+      - yfinance           # tickers and daily prices

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-marketReaction.py
+market_reaction.py
 
 Baseline experiment: Impact text -> next-day abnormal return direction (Saudi market).
 
@@ -25,8 +25,8 @@ Outputs (in --output_dir):
 - metrics.json
 
 Run:
-  python marketReaction.py --train_csv train_triplets.csv --test_csv test_triplets.csv \
-      --output_dir outputs --index_ticker "^TASI.SR"
+  python market_reaction.py --train_csv data/train_triplets.csv --test_csv data/test_triplets.csv \
+      --output_dir results/market_reaction --index_ticker "^TASI.SR"
 """
 
 from __future__ import annotations

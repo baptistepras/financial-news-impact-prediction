@@ -1,104 +1,83 @@
-# NLP Tasks Project - Master 1
+# Measuring the Market Impact of Financial News with Lightweight NLP Models
 
-Academic project exploring NLP tasks on financial news data with a focus on text summarization, entity extraction and linking, and impact prediction.
+A frugal pipeline that turns raw financial news into structured `(date, ticker, impact)` events, then tests whether these events predict next-day market reactions.
 
-students : 
-- PRAS Baptiste
-- PEÑA CASTAÑO Javier
-- LEIVA Martin
-- HERRERA NATIVI Vladimir
-## Overview
+Financial disclosures are long, full of numbers, and often mention several companies. Large language models summarize them well but are costly to run, and their mistakes on figures or on who did what are hard to detect. This project builds the whole chain with small models: the texts are cleaned, a fine-tuned Flan-T5 writes a short impact summary of each article, the companies are linked to their stock tickers, and each event is matched with the next-day return of the stock against its market.
 
-This project implements a frugal pipeline for processing financial news articles using transformer-based models. The dataset consists of high-quality financial news articles annotated with Mixtral 7×8B-generated summaries and impact labels.
+## Results
 
-**Data Source**: [High-Quality Financial News Dataset](https://www.kaggle.com/datasets/sayelabualigah/high-quality-financial-news-dataset-for-nlp-tasks/data)
+**Impact summaries.** The summarizer (Flan-T5-large, about two GPU hours of fine-tuning) reaches a ROUGE-L of 0.27 against the reference summaries. ROUGE does not check figures or company names, so each summary is also audited by Qwen2.5-7B-Instruct acting as a judge, on a 0 to 5 scale:
 
-## Project Structure
+| Accuracy | Issuer grounding | Numeric fidelity | Coverage | Conciseness | No filler |
+| --- | --- | --- | --- | --- | --- |
+| 3.00 | 3.17 | 3.01 | 3.07 | 2.08 | 2.38 |
 
-```
-.
-├── dataset.csv                  # Source financial news dataset
-├── train_chunk_reduce.py        # Training script with chunk-reduce approach for text summarization
-├── evaluate.py                  # LLM-as-a-judge evaluation framework for text summarization
-├── pred.csv                     # Model predictions output for text summarization
-├── judge_results.json           # Evaluation metrics and statistics for text summarization
-├── main.ipynb                   # Data exploration and entity extraction and linking
-├── marketReaction.py            # Classification task for market reactions
-├── outputs/                     # metrics and outputs of the calssification task
-├── slides.pdf
-├── report.pdf
-└── README.md
-```
+These are averages over the 230 test summaries, out of 267, for which the judge returned a valid answer. The scores cluster around 3, so the judge only separates summaries coarsely. The weak points are verbosity and generic investor language.
 
-## Tasks
+**Market reaction.** On 259 training and 47 test events from the Saudi market, a classifier on sentence embeddings of the impact summaries reaches a test ROC-AUC of 0.45. Always predicting a positive reaction gives a higher F1 (0.79 against 0.77). With this sample size, two-sentence summaries carry no usable signal for the direction of the next-day return. The [report](docs/report.pdf) discusses richer inputs, longer windows, and magnitude targets as next steps.
 
-### 1. Text Summarization
-Fine-tuning transformer models to generate compact and detailed financial summaries using a chunk-reduce strategy for handling long documents.
+## Environment
 
-### 2. Entity Extraction and Linking
-Identifying and linking financial entities (companies, persons, locations, financial instruments) mentioned in news articles to external knowledge bases.
+The project uses its own environment, `financial-news`, defined in [`environment.yml`](environment.yml):
 
-### 3. Impact Prediction
-Classifying the potential market impact of financial news articles based on their content.
+- Python 3.12;
+- PyTorch, Transformers, Accelerate, and Datasets for the summarizer, the judge, and the embeddings;
+- fastText for language detection, rouge-score, RapidFuzz and yfinance for ticker linking and prices;
+- scikit-learn, pandas, NumPy, Matplotlib, and JupyterLab.
 
-## Pipeline
+A CUDA GPU is needed to fine-tune the summarizer and to run the judge (Qwen2.5-7B-Instruct in float16 needs about 16 GB of GPU memory). The entity linking and the market reaction steps run on a laptop, but need internet access to query Yahoo Finance. The language detection model `lid.176.bin` is downloaded separately (see [docs/usage.md](docs/usage.md)).
 
-1. **Data Loading**: Financial news articles from `dataset.csv`
-2. **Preprocessing**: Tokenization and chunking for long documents
-3. **Model Training**: Fine-tuning on CompactedSummary, DetailedSummary, and Impact labels
-4. **Entity Processing**: Extraction and linking of financial entities
-5. **Evaluation**: Multi-dimensional quality assessment using LLM-as-a-judge
-
-## Evaluation Metrics
-
-The evaluation framework (`evaluate.py`) assesses generated summaries across six dimensions:
-- **Accuracy**: Factual correctness and attribution
-- **Issuer Grounding**: Correct entity identification
-- **Numeric Fidelity**: Preservation of key numbers and dates
-- **Coverage**: Completeness of key events and consequences
-- **Conciseness**: Information density
-- **Professionalism**: Analyst-appropriate tone without filler
-
-## Key Features
-
-- **Chunk-reduce approach** for processing long financial documents beyond standard transformer context limits
-- **LLM-based evaluation** using local instruction-tuned models for quality assessment
-- **Multi-task learning** combining summarization, entity extraction, and impact prediction
-- **Frugal design** optimized for academic compute constraints
-
-## Usage
-
-### Training
-- Impact 
 ```bash
-python train_chunk_reduce.py
+mamba env create -f environment.yml   # create the environment once
+mamba activate financial-news         # activate it in every new terminal
 ```
-- Market Reaction
+
+## Data
+
+The articles come from the [High-Quality Financial News Dataset](https://www.kaggle.com/datasets/sayelabualigah/high-quality-financial-news-dataset-for-nlp-tasks/data) on Kaggle, whose reference impact summaries were written by Mixtral 8x7B. A copy is in `data/`, together with the train and test events used for the market reaction experiment. The dataset keeps the license of its Kaggle source.
+
+## Quick start
+
 ```bash
-python marketReaction.py --train_csv train_triplets.csv --test_csv test_triplets.csv --output_dir outputs --index_ticker "^TASI.SR"
+python summarization/train_chunk_reduce.py          # fine-tune the summarizer, write results/pred.csv
+python summarization/evaluate.py                    # LLM judge, write results/judge_results.json
+jupyter lab entity_linking.ipynb                    # cleaning, NER, and ticker linking
+python market_reaction.py --train_csv data/train_triplets.csv --test_csv data/test_triplets.csv \
+    --output_dir results/market_reaction --index_ticker "^TASI.SR"
 ```
-### Evaluation
-- Impact 
-```bash
-python evaluate.py --input_csv pred.csv --model Qwen/Qwen2.5-7B-Instruct
+
+Every command and its options are in [docs/usage.md](docs/usage.md).
+
+## Repository layout
+
 ```
-- Market Reaction : automatic
-
-### Visualization
-- Impact 
-```bash
-jupyter notebook data_vizualization.ipynb
+data/                  articles and market reaction events
+summarization/         summarizer and LLM judge
+entity_linking.ipynb   cleaning, NER, and ticker linking
+market_reaction.py     return labels and classifier
+results/               summaries, judge scores, and classifier outputs
+docs/                  implementation, usage, and report
 ```
-- Market Reaction : saved plots 
 
-## Requirements
+## Documentation
 
-- Python 3.8+
-- PyTorch
-- Transformers (Hugging Face)
-- pandas, numpy
-- [Additional dependencies in training/evaluation scripts]
+- [Implementation](docs/implementation.md): each stage of the pipeline, its models and parameters.
+- [Usage](docs/usage.md): setup and every command, with its options and outputs.
+- [Report](docs/report.pdf): the full write-up.
 
-## Academic Context
+## References
 
-Master 1 project demonstrating practical applications of modern NLP techniques to financial domain tasks with emphasis on efficiency and interpretability.
+- H. W. Chung, L. Hou, S. Longpre, B. Zoph, Y. Tay, W. Fedus, et al. Scaling instruction-finetuned language models. *JMLR*, 2024.
+- A. Q. Jiang, A. Sablayrolles, A. Roux, A. Mensch, B. Savary, C. Bamford, et al. Mixtral of experts. arXiv:2401.04088, 2024.
+- Qwen Team. Qwen2.5 technical report. arXiv:2412.15115, 2024.
+- L. Zheng, W.-L. Chiang, Y. Sheng, S. Zhuang, Z. Wu, Y. Zhuang, et al. Judging LLM-as-a-judge with MT-Bench and Chatbot Arena. *NeurIPS Datasets and Benchmarks*, 2023.
+- C.-Y. Lin. ROUGE: a package for automatic evaluation of summaries. *ACL Workshop on Text Summarization Branches Out*, 2004.
+- A. Joulin, E. Grave, P. Bojanowski, and T. Mikolov. Bag of tricks for efficient text classification. *EACL*, 2017.
+- J. Devlin, M.-W. Chang, K. Lee, and K. Toutanova. BERT: pre-training of deep bidirectional transformers for language understanding. *NAACL*, 2019.
+- E. F. Tjong Kim Sang and F. De Meulder. Introduction to the CoNLL-2003 shared task: language-independent named entity recognition. *CoNLL*, 2003.
+- N. Reimers and I. Gurevych. Sentence-BERT: sentence embeddings using Siamese BERT-networks. *EMNLP*, 2019.
+- W. Wang, F. Wei, L. Dong, H. Bao, N. Yang, and M. Zhou. MiniLM: deep self-attention distillation for task-agnostic compression of pre-trained transformers. *NeurIPS*, 2020.
+
+## Authors
+
+Baptiste PRAS, Martin LEIVA, Vladimir HERRERA-NATIVI, and Javier PEÑA-CASTAÑO.
