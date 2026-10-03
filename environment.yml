@@ -4,7 +4,7 @@ name: financial-news
 channels:
   - conda-forge
 dependencies:
-  - python=3.12
+  - python=3.10
   - pytorch>=2.5
   - transformers>=5.0,<6   # Flan-T5, the BERT NER model, Qwen2.5, MiniLM
   - accelerate             # Trainer and device_map="auto"

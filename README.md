@@ -20,7 +20,7 @@ These are averages over the 230 test summaries, out of 267, for which the judge 
 
 The project uses its own environment, `financial-news`, defined in [`environment.yml`](environment.yml):
 
-- Python 3.12;
+- Python 3.10;
 - PyTorch, Transformers, Accelerate, and Datasets for the summarizer, the judge, and the embeddings;
 - fastText for language detection, rouge-score, RapidFuzz and yfinance for ticker linking and prices;
 - scikit-learn, pandas, NumPy, Matplotlib, and JupyterLab.
